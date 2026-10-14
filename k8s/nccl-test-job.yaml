@@ -1,0 +1,24 @@
+# Optional: a Kubernetes Job that runs nccl-tests inside the cluster on one GPU node.
+# kubectl apply -f k8s/nccl-test-job.yaml && kubectl logs -f job/nccl-test
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nccl-test
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      runtimeClassName: nvidia
+      containers:
+        - name: nccl
+          image: nvcr.io/nvidia/pytorch:24.08-py3
+          command: ["bash", "-c"]
+          args:
+            - |
+              git clone --depth 1 https://github.com/NVIDIA/nccl-tests /tmp/nccl-tests &&
+              cd /tmp/nccl-tests && make -j MPI=0 >/dev/null &&
+              ./build/all_reduce_perf -b 8M -e 256M -f 2 -g $(nvidia-smi -L | wc -l)
+          resources:
+            limits:
+              nvidia.com/gpu: 2

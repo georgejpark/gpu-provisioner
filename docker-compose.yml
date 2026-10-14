@@ -1,0 +1,13 @@
+# Local dev stack: Temporal server + UI, and Redis for Celery.
+# `docker compose up -d` then open http://localhost:8233 for the Temporal UI.
+services:
+  temporal:
+    image: temporalio/temporal:latest
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--ui-port", "8233"]
+    ports:
+      - "7233:7233"   # gRPC, what the worker/API/CLI connect to
+      - "8233:8233"   # web UI
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"

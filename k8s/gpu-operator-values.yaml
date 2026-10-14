@@ -1,0 +1,24 @@
+# Helm values for the NVIDIA GPU Operator on k3s.
+# driver.enabled=false because the Proxmox nodes already have the NVIDIA driver
+# installed on the host (the CMP 170HX needs the patched driver anyway).
+driver:
+  enabled: false
+toolkit:
+  enabled: true
+  env:
+    - name: CONTAINERD_CONFIG
+      value: /var/lib/rancher/k3s/agent/etc/containerd/config.toml
+    - name: CONTAINERD_SOCKET
+      value: /run/k3s/containerd/containerd.sock
+    - name: CONTAINERD_RUNTIME_CLASS
+      value: nvidia
+    - name: CONTAINERD_SET_AS_DEFAULT
+      value: "true"
+devicePlugin:
+  enabled: true
+dcgmExporter:
+  enabled: true      # GPU metrics for Prometheus
+gfd:
+  enabled: true      # labels nodes with GPU model/driver
+migManager:
+  enabled: false     # CMP 170HX / P100 do not support MIG

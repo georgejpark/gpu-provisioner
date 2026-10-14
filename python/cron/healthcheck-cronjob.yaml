@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gpu-healthcheck
+  namespace: gpu-provisioner
+spec:
+  schedule: "0 3 * * *"          # 03:00 every night
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: gpu-healthcheck   # needs RBAC: get/list nodes
+          restartPolicy: OnFailure
+          containers:
+            - name: healthcheck
+              image: ghcr.io/georgejpark/gpu-provisioner-python:latest
+              command: ["python", "cron/healthcheck.py"]
+              env:
+                - name: CLUSTER_ID
+                  value: "lab1"
+                - name: TEMPORAL_ADDRESS
+                  value: "temporal-frontend.temporal.svc:7233"

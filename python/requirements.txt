@@ -1,0 +1,5 @@
+flask>=3.0
+temporalio>=1.5
+celery[redis]>=5.3
+redis>=5.0
+gunicorn>=21
