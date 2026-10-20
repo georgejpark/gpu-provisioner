@@ -1,0 +1,78 @@
+# Continuous integration for gpu-provisioner.
+#
+# Everything here runs on GitHub-hosted runners, needs no secrets and never
+# deploys or pushes anything. The Docker job builds python/Dockerfile to prove
+# it still builds, with push: false.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Go build, vet, test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go/go.mod
+          cache-dependency-path: go/go.sum
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Test (Temporal in-memory test environment, no server needed)
+        run: go test ./...
+
+  python:
+    name: Python install, compile, import
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"   # same as python/Dockerfile (python:3.12-slim)
+          cache: pip
+          cache-dependency-path: python/requirements.txt
+      - name: Install requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      # There is no pytest suite yet. Until one exists under python/, byte-compile
+      # every module (catches syntax errors) and import the app modules (catches
+      # broken imports and API drift in flask/temporalio/celery). Neither step
+      # connects to Temporal or Redis: the Celery app and Temporal client are lazy.
+      - name: Byte-compile all modules
+        run: python -m compileall -q .
+      - name: Import smoke test
+        run: python -c "import settings, temporal_client, tasks, api"
+
+  docker:
+    name: Docker build python/Dockerfile (no push)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: python
+          file: python/Dockerfile
+          push: false
+          tags: gpu-provisioner-python:ci
